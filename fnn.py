@@ -18,7 +18,9 @@ class FNN:
         self.num_layers = len(units_per_layer)
 
         # lambdas for supported activation functions
-        self.activation = lambda x: 1 / (1 + np.exp(-x))
+        # self.activation = lambda x: 1 / (1 + np.exp(-x))
+        self.activation = lambda x: 1 / (1 + np.exp(-np.clip(x, -500, 500))) 
+        
 
         self.weightrange = 5
         self.biasrange = 5
