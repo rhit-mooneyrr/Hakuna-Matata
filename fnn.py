@@ -1,53 +1,48 @@
-##################################################################################
-# Feed-forward neural network for teaching and learning.
-# Works with any number of hidden layers/neurons.
-# Supports the following activation functions: sigmoidm, tanh, relu, linear, gaussian, and identity.
-#
-# Eduardo Izquierdo
-# September 2024
-##################################################################################
-
 import numpy as np
 
 class FNN:
-    def __init__(self, units_per_layer):
-        """ Create Feedforward Neural Network based on specifications
-        units_per_layer: (list, len>=2) Number of neurons in each layer including input, hidden and output
-        """
-        self.units_per_layer = units_per_layer
-        self.num_layers = len(units_per_layer)
-
-        # lambdas for supported activation functions
-        # self.activation = lambda x: 1 / (1 + np.exp(-x))
-        self.activation = lambda x: 1 / (1 + np.exp(-np.clip(x, -500, 500))) 
-        
-
-        self.weightrange = 5
-        self.biasrange = 5
+    def __init__(self, layers):
+        """Initialize the neural network with a list of layers."""
+        self.layers = layers
+        self.units_per_layer = layers
+        self.weights = []
+        self.biases = []
+        self.weightrange = 1.0
 
     def setParams(self, params):
-        """ Set the weights, biases, and activation functions of the neural network 
-        Weights and biases are set directly by a parameter;
-        The activation function for each layer is set by the parameter with the highest value (one for each possible one out of the six)
-        """
+        """Set the neural network parameters (weights and biases)."""
         self.weights = []
-        start = 0
-        for l in np.arange(self.num_layers-1):
-            end = start + self.units_per_layer[l]*self.units_per_layer[l+1]
-            self.weights.append((params[start:end]*self.weightrange).reshape(self.units_per_layer[l],self.units_per_layer[l+1]))
-            start = end
         self.biases = []
-        for l in np.arange(self.num_layers-1):
-            end = start + self.units_per_layer[l+1]
-            self.biases.append((params[start:end]*self.biasrange).reshape(1,self.units_per_layer[l+1]))
+        start = 0
+        
+        for l in range(len(self.units_per_layer) - 1):
+            # Set weights for the connections between layers
+            end = start + self.units_per_layer[l] * self.units_per_layer[l + 1]
+            self.weights.append((params[start:end] * self.weightrange).reshape(self.units_per_layer[l], self.units_per_layer[l + 1]))
+            start = end
+            
+            # Set biases for the current layer
+            end = start + self.units_per_layer[l + 1]
+            self.biases.append((params[start:end] * self.weightrange))
             start = end
 
     def forward(self, inputs):
-        """ Forward propagate the given inputs through the network """
-        states = np.asarray(inputs)
-        for l in np.arange(self.num_layers - 1):
-            if states.ndim == 1:
-                states = [states]
-            states = self.activation(np.matmul(states, self.weights[l]) + self.biases[l])
-        return states
+        """Perform a forward pass through the network."""
+        x = inputs
+        for i in range(len(self.weights)):
+            x = np.dot(x, self.weights[i]) + self.biases[i]  # Weighted sum + bias
+            x = self.sigmoid(x)  # Apply activation function
+        return x
 
+    def sigmoid(self, x):
+        """Sigmoid activation function."""
+        return 1 / (1 + np.exp(-x))
+
+    def getParams(self):
+        """Get the neural network parameters as a flat list (for use in evolution)."""
+        params = []
+        for weight in self.weights:
+            params.extend(weight.flatten())
+        for bias in self.biases:
+            params.extend(bias.flatten())
+        return np.array(params)

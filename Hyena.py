@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib as plt
 import fnn
+import numpy as np
+import fnn  # Assuming FNN is part of the fnn.py module
 
 class Hyena:
     def __init__(self, layers, env_size):
@@ -34,3 +36,7 @@ class Hyena:
         # Update position and ensure it's within bounds
         self.position += movement
         self.position = np.clip(self.position, 0, self.env_size)
+
+    def calculate_distance(self, target_position):
+        """Calculate the Euclidean distance between the hyena and the target (meerkat)."""
+        return np.linalg.norm(self.position - target_position)
