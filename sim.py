@@ -7,22 +7,23 @@ import ea
 class Simulation:
     def __init__(self, num_meerkats=3):
         self.env_size = 100
-        self.max_steps = 100
-        self.layers = [2, 10, 2]  # Example: 2 inputs (x, y), hidden layer with 10 units, 2 outputs (delta x, delta y)
+        self.max_steps = 1000
+        self.layers = [1, 10, 2]  # 1 input (smell_strength), hidden layer with 10 units, 2 outputs (delta x, delta y)
         
-        # Initialize multiple meerkats
+        # Initialize multiple meerkats with a smell radius
         self.meerkats = []
         for _ in range(num_meerkats):
             meerkat_x = np.random.uniform(0, self.env_size)
             meerkat_y = np.random.uniform(0, self.env_size)
-            self.meerkats.append(Meerkat(meerkat_x, meerkat_y))
+            smell_radius = 20  # Define the smell radius
+            self.meerkats.append(Meerkat(meerkat_x, meerkat_y, smell_radius))
         
         # Calculate total number of weights and biases for the neural network
         self.genesize = (
             self.layers[0] * self.layers[1] +   # Input to hidden layer weights
             self.layers[1] * self.layers[2] +   # Hidden to output layer weights
-            self.layers[1] +                   # Hidden layer biases
-            self.layers[2]                     # Output layer biases
+            self.layers[1] +                    # Hidden layer biases
+            self.layers[2]                      # Output layer biases
         )
 
         self.popsize = 50
@@ -32,44 +33,61 @@ class Simulation:
         hyena.set_genotype(genotype)
 
         total_fitness = 0
-
-        # Track the closest meerkat distance
-        closest_meerkat = None
-        closest_distance = float('inf')
+        previous_smell_strength = 0  # To track changes in smell strength
 
         for step in range(self.max_steps):
-            # Find the closest meerkat
-            closest_meerkat = self.find_closest_meerkat(hyena)
+            # Find the meerkat with the strongest smell
+            target_meerkat, smell_strength = self.find_strongest_smell(hyena)
 
-            # Move the hyena towards the closest meerkat
-            hyena.move_towards_meerkat(closest_meerkat.position)
-            new_distance = hyena.calculate_distance(closest_meerkat.position)
-
-            # Reward for getting closer, penalty for moving away
-            if new_distance < closest_distance:
-                total_fitness += (closest_distance - new_distance) * 10
+            if smell_strength > 0:
+                # Calculate direction towards target meerkat
+                direction = target_meerkat.position - hyena.position
+                target_direction = direction / np.linalg.norm(direction)
             else:
-                total_fitness -= 50
+                target_direction = np.zeros(2)
 
-            closest_distance = new_distance
+            hyena.move(smell_strength, target_direction)
+
+            # Update fitness
+            if smell_strength > previous_smell_strength:
+                total_fitness += (smell_strength - previous_smell_strength) * 200
+            elif smell_strength < previous_smell_strength:
+                total_fitness -= (previous_smell_strength - smell_strength) * 200
+            else:
+                total_fitness -= 1  # Small penalty for no improvement
+
+            if smell_strength == 0 and previous_smell_strength == 0:
+                # Encourage exploration
+                total_fitness += 0.2  # Small reward for moving
+
+            previous_smell_strength = smell_strength
 
             # Large reward for reaching a meerkat
-            if new_distance < 5:
-                total_fitness += 1000
-                break  # Stop if the hyena is close enough to a meerkat
+            if target_meerkat is not None:
+                distance = hyena.calculate_distance(target_meerkat.position)
+                if distance < 5:
+                    total_fitness += 1000
+                    break  # Stop if the hyena is close enough to a meerkat
 
         return total_fitness
 
-    def find_closest_meerkat(self, hyena):
-        """Find the meerkat closest to the hyena."""
-        closest_meerkat = None
-        closest_distance = float('inf')
+    def find_strongest_smell(self, hyena):
+        """Find the meerkat with the strongest smell."""
+        strongest_smell = 0
+        target_meerkat = None
         for meerkat in self.meerkats:
             distance = hyena.calculate_distance(meerkat.position)
-            if distance < closest_distance:
-                closest_distance = distance
-                closest_meerkat = meerkat
-        return closest_meerkat
+            if distance <= meerkat.smell_radius:
+                smell_strength = 1.0 / (1.0 + distance)
+                if smell_strength > strongest_smell:
+                    strongest_smell = smell_strength
+                    target_meerkat = meerkat
+                elif abs(smell_strength - strongest_smell) < 0.01:
+                    # If smells are approximately equal, randomly choose
+                    if np.random.rand() > 0.5:
+                        strongest_smell = smell_strength
+                        target_meerkat = meerkat
+        return target_meerkat, strongest_smell
 
     def run_evolution(self):
         """Run the microbial genetic algorithm."""
@@ -78,6 +96,8 @@ class Simulation:
 
         # Extract the best genotype
         best_genotype = ga.pop[np.argmax(ga.fit)]
+        # Plot the fitness over time
+        ga.showFitness()
         return best_genotype
 
     def run_simulation(self, best_genotype):
@@ -87,24 +107,45 @@ class Simulation:
         
         positions = [hyena.position.copy()]
 
+        previous_smell_strength = 0
+
         for step in range(self.max_steps):
-            closest_meerkat = self.find_closest_meerkat(hyena)
-            hyena.move_towards_meerkat(closest_meerkat.position)
+            target_meerkat, smell_strength = self.find_strongest_smell(hyena)
+
+            if smell_strength > 0:
+                # Calculate direction towards target meerkat
+                direction = target_meerkat.position - hyena.position
+                target_direction = direction / np.linalg.norm(direction)
+            else:
+                target_direction = np.zeros(2)
+
+            hyena.move(smell_strength, target_direction)
             positions.append(hyena.position.copy())
+
+            # Stop if hyena reaches a meerkat
+            if target_meerkat is not None:
+                distance = hyena.calculate_distance(target_meerkat.position)
+                if distance < 5:
+                    break
+
+            previous_smell_strength = smell_strength
 
         return np.array(positions)
 
     def plot_results(self, positions):
         """Plot the path of the hyena and positions of the meerkats."""
-        plt.figure()
+        plt.figure(figsize=(10, 8))
         plt.plot(positions[:, 0], positions[:, 1], label="Hyena Path", color="blue")
         
-        # Check if the hyena's final position overlaps with any meerkat
         hyena_final_position = positions[-1]
 
         for i, meerkat in enumerate(self.meerkats):
             meerkat_position = meerkat.position
             distance_to_hyena = np.linalg.norm(hyena_final_position - meerkat_position)
+            
+            # Plot the smell radius
+            circle = plt.Circle((meerkat_position[0], meerkat_position[1]), meerkat.smell_radius, color='gray', fill=False, linestyle='--', alpha=0.5)
+            plt.gca().add_patch(circle)
             
             if distance_to_hyena < 5:  # If the final position is within 5 units of the meerkat
                 plt.scatter(meerkat_position[0], meerkat_position[1], label=f"Meerkat {i+1} (Reached)", 
@@ -121,6 +162,7 @@ class Simulation:
         plt.xlabel("X position")
         plt.ylabel("Y position")
         plt.legend()
+        plt.grid(True)
         plt.show()
 
 # Main Code

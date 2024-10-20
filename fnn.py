@@ -8,7 +8,7 @@ class FNN:
         self.weights = []
         self.biases = []
         self.weightrange = 1.0
-
+    
     def setParams(self, params):
         """Set the neural network parameters (weights and biases)."""
         self.weights = []

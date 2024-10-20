@@ -10,10 +10,10 @@ class MGA():
         self.mutationprob = mutationprob
         self.tournaments = tournaments
         self.fitnessfunction = fitnessfunction
-        self.pop = np.random.random((popsize,genesize))*2 - 1
+        self.pop = np.random.random((popsize, genesize)) * 2 - 1
         self.fit = self.calculateFitness()
         # stats
-        gens = tournaments//popsize      
+        gens = tournaments // popsize      
         self.bestfit = np.zeros(gens)
         self.avgfit = np.zeros(gens)
         self.worstfit = np.zeros(gens)
@@ -26,11 +26,11 @@ class MGA():
         return fits
 
     def run(self):
-        # 1 loop for tour
+        # 1 loop for tournament
         gen = 0
         for t in range(self.tournaments):
-            # 2 pick two to fight (same could be picked -- fix)
-            [a,b] = np.random.choice(np.arange(self.popsize),2,replace=False)
+            # 2 pick two to fight
+            [a, b] = np.random.choice(np.arange(self.popsize), 2, replace=False)
             # 3 pick winner
             if self.fit[a] > self.fit[b]:
                 winner = a
@@ -43,8 +43,8 @@ class MGA():
                 if np.random.random() < self.recomprob: 
                     self.pop[loser][g] = self.pop[winner][g] 
             # 5 mutate loser
-            self.pop[loser] += np.random.normal(0,self.mutationprob,self.genesize)
-            self.pop[loser] = np.clip(self.pop[loser],-1,1)
+            self.pop[loser] += np.random.normal(0, self.mutationprob, self.genesize)
+            self.pop[loser] = np.clip(self.pop[loser], -1, 1)
             # Update
             self.fit[loser] = self.fitnessfunction(self.pop[loser])
             # 6 Stats 
@@ -54,13 +54,15 @@ class MGA():
                 self.worstfit[gen] = np.min(self.fit)
                 self.bestind[gen] = np.argmax(self.fit)                
                 gen += 1
-#                print(t,np.max(self.fit),np.mean(self.fit),np.min(self.fit),np.argmax(self.fit))
 
     def showFitness(self):
-        plt.plot(self.bestfit,label="Best")
-        plt.plot(self.avgfit,label="Avg.")
-        plt.plot(self.worstfit,label="Worst")
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.bestfit, label="Best")
+        plt.plot(self.avgfit, label="Average")
+        plt.plot(self.worstfit, label="Worst")
         plt.xlabel("Generations")
         plt.ylabel("Fitness")
-        plt.title("Evolution")
+        plt.title("Fitness over Generations")
+        plt.legend()
+        plt.grid(True)
         plt.show()
