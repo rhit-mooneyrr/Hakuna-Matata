@@ -2,13 +2,14 @@ import numpy as np
 import fnn  # Assuming FNN is part of the fnn.py module
 
 class Hyena:
-    def __init__(self, layers, env_size, smell_radius=20):
+    def __init__(self, layers, env_size):
         self.env_size = env_size
         self.position = np.random.uniform(0, env_size, 2)  # Random initial position
         self.brain = fnn.FNN(layers)  # Initialize neural network
         self.previous_movement = np.random.uniform(-1, 1, 2)  # Initial random direction
 
     def set_genotype(self, genotype):
+        """Set the neural network parameters."""
         self.brain.setParams(genotype)
 
     def move(self, smell_strength, target_direction):
@@ -22,7 +23,7 @@ class Hyena:
             movement = movement * 0.5 + target_direction * 2.0  # Strongly bias towards target
         else:
             # Random movement with more frequent direction changes
-            if np.random.rand() < 0.5:
+            if np.random.rand() < 0.3:  # Adjusted probability
                 # Continue in the same direction
                 movement = self.previous_movement
             else:
@@ -35,4 +36,5 @@ class Hyena:
         self.previous_movement = movement  # Update previous movement
 
     def calculate_distance(self, target_position):
+        """Calculate the Euclidean distance between the hyena and the target (meerkat)."""
         return np.linalg.norm(self.position - target_position)
